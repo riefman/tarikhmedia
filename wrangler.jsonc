@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "kelasjagoan3",
+  "name": "tarikhmedia",
   "main": "_worker.js",
   "compatibility_date": "2025-09-27",
   "observability": {
@@ -16,8 +16,8 @@
   ],
   "vars": {
     "ALLOWED_ORIGINS": "https://tarikhmedia.my.id,https://www.tarikhmedia.my.id",
-    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbxvpwcjg4pwXiXFVrCZ2W_qtSaahMkbbowPqvNGPJKkhO4zpLFsP2MF8lkpMoZ37LHy/exec",
-    "MOOTA_GAS_URL": "https://script.google.com/macros/s/AKfycbxvpwcjg4pwXiXFVrCZ2W_qtSaahMkbbowPqvNGPJKkhO4zpLFsP2MF8lkpMoZ37LHy/exec",
+    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbwr3oTcf82NfOMrPtjI_OvJ0Tnd_u-D_KVRbvCI34jchMTYczyUsA3-WjgCCoggWrI-rg/exec",
+    "MOOTA_GAS_URL": "https://script.google.com/macros/s/AKfycbwr3oTcf82NfOMrPtjI_OvJ0Tnd_u-D_KVRbvCI34jchMTYczyUsA3-WjgCCoggWrI-rg/exec",
     "MOOTA_TOKEN": "l1GiARpI"
   }
 }

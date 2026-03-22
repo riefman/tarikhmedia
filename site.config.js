@@ -14,17 +14,17 @@
  */
 var SITE_CONFIG = {
     // ── Domain Utama (Production) ──────────────────────────
-    PRIMARY_DOMAIN: 'tarikhmedia.my.id',
+    PRIMARY_DOMAIN: 'kelasjagoan.my.id',
 
     // ── Daftar Domain yang Diizinkan ───────────────────────
     ALLOWED_DOMAINS: [
-        'tarikhmedia.my.id',
-        'www.tarikhmedia.my.id'
+        'kelasjagoan.my.id',
+        'www.kelasjagoan.my.id'
     ],
 
     // ── Pattern Subdomain yang Diizinkan ───────────────────
     ALLOWED_SUBDOMAIN_SUFFIXES: [
-        '.tarikhmedia.my.id'
+        '.kelasjagoan.my.id'
     ],
 
     // ── Cloudflare Pages Preview ───────────────────────────
