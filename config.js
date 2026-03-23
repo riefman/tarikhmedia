@@ -385,6 +385,9 @@
                             return res;
                         } catch (err) {
                             lastErr = err;
+                            if (init && init.signal && init.signal.aborted) {
+                                throw err;
+                            }
                             if (canRetry && attempt < maxAttempts) {
                                 _markStat('retry_replays', _parseAction(init));
                                 await _sleep(_calcDelay(attempt));

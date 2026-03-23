@@ -365,7 +365,22 @@
             else if (cfg.endpoint && !isValidImageKitEndpoint(cfg.endpoint)) errors.push('Format ImageKit URL endpoint tidak valid. Gunakan HTTPS, misalnya https://ik.imagekit.io/nama-endpoint');
 
             if (!cfg.privateKey && !cfg.hasStoredPrivateKey) errors.push('ImageKit private key wajib diisi.');
-            if (cfg.privateKey && !isValidImageKitPrivateKey(cfg.privateKey)) errors.push('Format ImageKit private key tidak valid. Harus diawali dengan "private_".');
+            if (cfg.privateKey && !isValidImageKitPrivateKey(cfg.privateKey)) {
+                // Proactively fix if it doesn't start with private_ but looks like a key
+                if (cfg.privateKey && !cfg.privateKey.startsWith('private_')) {
+                    const fixedKey = 'private_' + cfg.privateKey;
+                    if (isValidImageKitPrivateKey(fixedKey)) {
+                        // Update the input field value to the fixed version
+                        const privInput = document.getElementById('set-ik-priv');
+                        if (privInput) privInput.value = fixedKey;
+                        cfg.privateKey = fixedKey;
+                    } else {
+                        errors.push('Format ImageKit private key tidak valid. Harus diawali dengan "private_".');
+                    }
+                } else {
+                    errors.push('Format ImageKit private key tidak valid. Harus diawali dengan "private_".');
+                }
+            }
 
             return { hasAnyValue: true, errors };
         }
@@ -2042,7 +2057,7 @@
                 
                 // Add timeout for better UX
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
+                const timeoutId = setTimeout(() => controller.abort(), 60000); // Increase to 60 seconds
 
                 const res = await fetch(endpoint, { 
                     method: 'POST', 
@@ -2062,10 +2077,22 @@
                     }
                 } 
             } catch (err) { 
-                console.error("Sync error:", err); 
+                console.error("Sync error:", err);
+                const syncLabel = document.getElementById('sync-status');
+                if (err.name === 'AbortError') {
+                    if (syncLabel) {
+                        syncLabel.innerText = 'Request timed out. Please refresh.';
+                        syncLabel.classList.remove('hidden');
+                        syncLabel.classList.replace('bg-indigo-50', 'bg-red-50');
+                        syncLabel.classList.replace('text-indigo-600', 'text-red-600');
+                        return; // Exit early to keep the error visible
+                    }
+                }
             } finally {
-                // Ensure sync label is always hidden after attempt
-                syncLabel.classList.add('hidden');
+                const syncLabel = document.getElementById('sync-status');
+                if (syncLabel && !syncLabel.innerText.includes('timed out')) {
+                    syncLabel.classList.add('hidden');
+                }
             }
         }
 

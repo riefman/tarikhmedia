@@ -803,7 +803,16 @@ function validateImageKitConfigFormat_(ikCfg, opts) {
 
   if (requirePrivate && !ikCfg.privateKey) errors.push("ImageKit private key wajib diisi.");
   if (requirePrivate && ikCfg.privateKey && !isValidImageKitPrivateKey_(ikCfg.privateKey)) {
-    errors.push("Format ImageKit private key tidak valid. Harus diawali dengan 'private_'.");
+    // Proactively fix if it doesn't start with private_ but looks like a key
+    if (ikCfg.privateKey && !ikCfg.privateKey.startsWith('private_')) {
+      ikCfg.privateKey = 'private_' + ikCfg.privateKey;
+      // After prefixing, re-validate
+      if (!isValidImageKitPrivateKey_(ikCfg.privateKey)) {
+        errors.push("Format ImageKit private key tidak valid. Harus diawali dengan 'private_'.");
+      }
+    } else {
+      errors.push("Format ImageKit private key tidak valid. Harus diawali dengan 'private_'.");
+    }
   }
 
   return errors;
