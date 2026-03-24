@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tarikhmedia",
+  "name": "cepaticu",
   "main": "_worker.js",
   "compatibility_date": "2025-09-27",
   "observability": {
@@ -16,6 +16,6 @@
   ],
   "vars": {
     "ALLOWED_ORIGINS": "https://tarikhmedia.my.id,https://www.tarikhmedia.my.id",
-    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbzRk7r_aYtKeip9nN7htPSaykEXOlNHVIjd5b2pqa06wTkzoN7JOqxm9jAyclXi3wci2w/exec"
+    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbyBLRi8MpnA65br7lREvx4rDoDp91je-A6Eqm9odXIrU5sLyrppd4QYtW58PeJSpnlnCg/exec"
   }
 }
