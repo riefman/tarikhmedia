@@ -1,13 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tarikhmedia",
+  "name": "cepaticu",
   "main": "_worker.js",
   "compatibility_date": "2025-09-27",
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": ".",
+    "directory": "public",
     "binding": "ASSETS",
     "run_worker_first": true
   },
@@ -16,8 +16,6 @@
   ],
   "vars": {
     "ALLOWED_ORIGINS": "https://tarikhmedia.my.id,https://www.tarikhmedia.my.id",
-    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbwr3oTcf82NfOMrPtjI_OvJ0Tnd_u-D_KVRbvCI34jchMTYczyUsA3-WjgCCoggWrI-rg/exec",
-    "MOOTA_GAS_URL": "https://script.google.com/macros/s/AKfycbwr3oTcf82NfOMrPtjI_OvJ0Tnd_u-D_KVRbvCI34jchMTYczyUsA3-WjgCCoggWrI-rg/exec",
-    "MOOTA_TOKEN": "l1GiARpI"
+    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbyBLRi8MpnA65br7lREvx4rDoDp91je-A6Eqm9odXIrU5sLyrppd4QYtW58PeJSpnlnCg/exec"
   }
 }
