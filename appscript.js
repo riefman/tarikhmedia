@@ -11,12 +11,22 @@ const SCRIPT_CONFIG = {
   ENV: "production"
 };
 
+const DEMO_ADMIN_ACCOUNT = {
+  id: "demo-admin",
+  email: "admin@demo.com",
+  password: "admindemo",
+  name: "Demo Admin",
+  role: "demo_admin",
+  read_only: true
+};
 const ADMIN_SESSION_CACHE_TTL_SECONDS = 6 * 60 * 60;
 const ADMIN_SESSION_CACHE_PREFIX = "admin_session_cache_";
 const ADMIN_SESSION_PROPERTY_PREFIX = "admin_session_";
 const PUBLIC_CACHE_STATE_PROPERTY = "public_cache_state_v1";
 const PUBLIC_CACHE_SCOPES = ["settings", "catalog", "pages", "dashboard"];
 const PRODUCT_DESC_MAX_LENGTH = 280;
+const DEMO_MASK_VALUE = "\u2022\u2022\u2022\u2022";
+const DEMO_MASK_VALUE_LONG = "\u2022\u2022\u2022\u2022\u2022\u2022";
 
 function getScriptConfig(key) {
   try {
@@ -266,6 +276,10 @@ function verifyPassword_(input, stored) {
   return inStr === st;
 }
 
+function isDemoAdminRole_(role) {
+  return String(role || "").trim().toLowerCase() === "demo_admin";
+}
+
 function getAdminSessionToken_(data) {
   const source = data || {};
   return String(
@@ -307,6 +321,8 @@ function createAdminSession_(sessionData) {
     email: "",
     name: "Admin",
     role: "admin",
+    read_only: false,
+    demo_mode: false,
     issued_at: issuedAt,
     expires_at: 0
   }, sessionData || {});
@@ -357,15 +373,19 @@ function getAdminSession_(token) {
 function validateAdminSessionAccess_(session, options) {
   const opts = options || {};
   const actionName = String(opts.actionName || "aksi admin").trim();
+  const allowDemo = opts.allowDemo !== false;
   const allowedRoles = Array.isArray(opts.allowedRoles) && opts.allowedRoles.length
     ? opts.allowedRoles.map(function(role) { return String(role || "").trim().toLowerCase(); })
-    : ["admin"];
+    : ["admin", "demo_admin"];
   if (!session || typeof session !== "object") {
     throw new Error("Sesi admin tidak valid. Silakan login ulang.");
   }
   const role = String(session.role || "").trim().toLowerCase();
   if (!role || allowedRoles.indexOf(role) === -1) {
     throw new Error("Akses admin ditolak untuk aksi " + actionName + ".");
+  }
+  if (!allowDemo && isDemoAdminRole_(role)) {
+    throw new Error("Mode demo admin hanya dapat melihat data. Aksi " + actionName + " dinonaktifkan.");
   }
   return session;
 }
@@ -382,6 +402,133 @@ function adminLogout(d) {
   const token = getAdminSessionToken_(d);
   if (token) revokeAdminSession_(token);
   return { status: "success", message: "Sesi admin berhasil ditutup." };
+}
+
+function assertNonDemoAdminMutationIfPresent_(data, actionName) {
+  const token = getAdminSessionToken_(data);
+  if (!token) return null;
+  return requireAdminSession_(data, { allowDemo: false, actionName: actionName });
+}
+
+function maskDemoValue_(value, opts) {
+  const options = opts || {};
+  if (options.blank) return "";
+  if (options.currency) return DEMO_MASK_VALUE_LONG;
+  if (options.email) return "demo@" + DEMO_MASK_VALUE;
+  if (options.slug) return DEMO_MASK_VALUE.toLowerCase();
+  if (options.short) return "\u2022\u2022\u2022";
+  return DEMO_MASK_VALUE;
+}
+
+function maskDemoOrderRow_(row) {
+  const source = Array.isArray(row) ? row : [];
+  return [
+    maskDemoValue_(source[0], { short: true }),
+    maskDemoValue_(source[1], { email: true }),
+    maskDemoValue_(source[2]),
+    maskDemoValue_(source[3]),
+    maskDemoValue_(source[4], { short: true }),
+    maskDemoValue_(source[5]),
+    maskDemoValue_(source[6], { currency: true }),
+    maskDemoValue_(source[7], { short: true }),
+    maskDemoValue_(source[8], { short: true }),
+    maskDemoValue_(source[9], { short: true }),
+    maskDemoValue_(source[10], { currency: true })
+  ];
+}
+
+function maskDemoUserRow_(row) {
+  const source = Array.isArray(row) ? row : [];
+  return [
+    maskDemoValue_(source[0], { short: true }),
+    maskDemoValue_(source[1], { email: true }),
+    maskDemoValue_(source[2]),
+    maskDemoValue_(source[3]),
+    maskDemoValue_(source[4], { short: true }),
+    maskDemoValue_(source[5], { short: true }),
+    maskDemoValue_(source[6], { short: true }),
+    maskDemoValue_(source[7], { short: true })
+  ];
+}
+
+function maskDemoProductRow_(row) {
+  const source = Array.isArray(row) ? row : [];
+  return [
+    maskDemoValue_(source[0], { short: true }),
+    maskDemoValue_(source[1]),
+    maskDemoValue_(source[2]),
+    "",
+    maskDemoValue_(source[4], { currency: true }),
+    maskDemoValue_(source[5], { short: true }),
+    "",
+    "",
+    "",
+    "",
+    "",
+    maskDemoValue_(source[11], { currency: true })
+  ];
+}
+
+function maskDemoPageRow_(row) {
+  const source = Array.isArray(row) ? row : [];
+  return [
+    maskDemoValue_(source[0], { short: true }),
+    maskDemoValue_(source[1], { slug: true }),
+    maskDemoValue_(source[2]),
+    "",
+    maskDemoValue_(source[4], { short: true }),
+    maskDemoValue_(source[5], { short: true }),
+    maskDemoValue_(source[6], { short: true }),
+    "",
+    "",
+    "",
+    maskDemoValue_(source[10], { short: true })
+  ];
+}
+
+function maskDemoSettings_(settings) {
+  const source = settings && typeof settings === "object" ? settings : {};
+  return Object.assign({}, source, {
+    site_name: DEMO_MASK_VALUE,
+    site_tagline: DEMO_MASK_VALUE,
+    site_logo: "",
+    site_favicon: "",
+    contact_email: maskDemoValue_(source.contact_email, { email: true }),
+    wa_admin: DEMO_MASK_VALUE,
+    fonnte_token: "",
+    moota_gas_url: DEMO_MASK_VALUE,
+    moota_token: "",
+    moota_token_configured: false,
+    ik_public_key: "",
+    ik_endpoint: DEMO_MASK_VALUE,
+    ik_private_key: "",
+    ik_private_key_configured: false,
+    cf_zone_id: DEMO_MASK_VALUE,
+    cf_api_token: ""
+  });
+}
+
+function maskAdminDataForDemo_(payload, session) {
+  const source = payload && typeof payload === "object" ? payload : {};
+  return {
+    status: "success",
+    demo_mode: true,
+    read_only: true,
+    role: session && session.role ? session.role : DEMO_ADMIN_ACCOUNT.role,
+    session_expires_at: session && session.expires_at ? session.expires_at : 0,
+    stats: {
+      users: DEMO_MASK_VALUE,
+      orders: DEMO_MASK_VALUE,
+      rev: DEMO_MASK_VALUE_LONG
+    },
+    orders: (source.orders || []).map(maskDemoOrderRow_),
+    products: (source.products || []).map(maskDemoProductRow_),
+    pages: (source.pages || []).map(maskDemoPageRow_),
+    settings: maskDemoSettings_(source.settings || {}),
+    users: (source.users || []).map(maskDemoUserRow_),
+    has_more_orders: !!source.has_more_orders,
+    has_more_users: !!source.has_more_users
+  };
 }
 
 function sanitizeAssetUrl_(raw) {
@@ -656,7 +803,16 @@ function validateImageKitConfigFormat_(ikCfg, opts) {
 
   if (requirePrivate && !ikCfg.privateKey) errors.push("ImageKit private key wajib diisi.");
   if (requirePrivate && ikCfg.privateKey && !isValidImageKitPrivateKey_(ikCfg.privateKey)) {
-    errors.push("Format ImageKit private key tidak valid. Harus diawali dengan 'private_'.");
+    // Proactively fix if it doesn't start with private_ but looks like a key
+    if (ikCfg.privateKey && !ikCfg.privateKey.startsWith('private_')) {
+      ikCfg.privateKey = 'private_' + ikCfg.privateKey;
+      // After prefixing, re-validate
+      if (!isValidImageKitPrivateKey_(ikCfg.privateKey)) {
+        errors.push("Format ImageKit private key tidak valid. Harus diawali dengan 'private_'.");
+      }
+    } else {
+      errors.push("Format ImageKit private key tidak valid. Harus diawali dengan 'private_'.");
+    }
   }
 
   return errors;
@@ -860,8 +1016,6 @@ function doPost(e) {
       case "save_product": return jsonRes(saveProduct(data));
       case "save_page": return jsonRes(savePage(data));
       case "update_settings": return jsonRes(updateSettings(data));
-      case "update_moota_gateway": return jsonRes(updateMootaGatewaySettings(data));
-      case "update_imagekit_media": return jsonRes(updateImageKitMediaSettings(data));
       case "import_moota_config": return jsonRes(importMootaConfig(data));
       case "get_ik_auth": return jsonRes(getImageKitAuth(data, cfg));
       case "get_media_files": return jsonRes(getIkFiles(data, cfg));
@@ -892,6 +1046,7 @@ function doPost(e) {
       case "test_auth":
       case "test_moota_validation":
       case "test_moota_signature":
+      case "test_demo_admin_security":
       case "purge_sync_logs":
       case "audit_sync_logs_cleanup":
         assertPrivilegedAction_(data, cfg);
@@ -907,6 +1062,7 @@ function doPost(e) {
         if (action === "test_auth") return jsonRes(runAuthTests());
         if (action === "test_moota_validation") return jsonRes(runMootaValidationTests());
         if (action === "test_moota_signature") return jsonRes(runMootaSignatureTests());
+        if (action === "test_demo_admin_security") return jsonRes(runDemoAdminSecurityTests());
         if (action === "purge_sync_logs") return jsonRes(purgeSyncLogsArtifacts_(false, data));
         if (action === "audit_sync_logs_cleanup") return jsonRes(purgeSyncLogsArtifacts_(true, data));
         return jsonRes({ status: "error", message: "Unsupported privileged action" });
@@ -943,7 +1099,7 @@ function getGlobalSettings(cfg) {
 ========================= */
 function purgeCFCache(d, cfg) {
   try {
-    requireAdminSession_(d, { actionName: "purge_cf_cache" });
+    requireAdminSession_(d, { allowDemo: false, actionName: "purge_cf_cache" });
     cfg = cfg || getSettingsMap_();
     const zoneId = getSecret_("cf_zone_id", cfg);
     const token = getSecret_("cf_api_token", cfg);
@@ -973,7 +1129,7 @@ function purgeCFCache(d, cfg) {
 }
 
 function testMootaConfig(d, cfg) {
-  requireAdminSession_(d, { actionName: "test_moota_config" });
+  requireAdminSession_(d, { allowDemo: false, actionName: "test_moota_config" });
   cfg = cfg || getSettingsMap_();
   const mootaCfg = resolveMootaConfig_(d, cfg);
   const errors = validateMootaConfigFormat_(mootaCfg);
@@ -1060,7 +1216,10 @@ function testMootaConfig(d, cfg) {
 }
 
 function getIkFiles(d, cfg) {
-  requireAdminSession_(d, { actionName: "get_media_files" });
+  const session = requireAdminSession_(d, { allowDemo: true, actionName: "get_media_files" });
+  if (isDemoAdminRole_(session.role)) {
+    return { status: "success", files: [], message: "Mode demo menyembunyikan data media." };
+  }
   cfg = cfg || getSettingsMap_();
   const ikCfg = resolveImageKitConfig_({}, cfg);
   const errors = validateImageKitConfigFormat_(ikCfg, { requirePublic: false, requireEndpoint: false, requirePrivate: true });
@@ -1543,9 +1702,7 @@ function getEmailQuotaStatus() {
 ========================= */
 function createOrder(d, cfg) {
   try {
-    if (getAdminSessionToken_(d)) {
-      requireAdminSession_(d, { actionName: "create_order" });
-    }
+    assertNonDemoAdminMutationIfPresent_(d, "create_order");
     cfg = cfg || getSettingsMap_();
 
     const oS = mustSheet_("Orders");
@@ -1788,7 +1945,7 @@ Jika ada pertanyaan, silakan balas pesan ini. Terima kasih! 🙏`;
 ========================= */
 function updateOrderStatus(d, cfg) {
   try {
-    requireAdminSession_(d, { actionName: "update_order_status" });
+    requireAdminSession_(d, { allowDemo: false, actionName: "update_order_status" });
     cfg = cfg || getSettingsMap_();
     const s = mustSheet_("Orders");
     const uS = mustSheet_("Users"); // kept for compatibility (even if not used)
@@ -2259,6 +2416,30 @@ function adminLogin(d) {
     return { status: "error", message: "Email dan password wajib diisi." };
   }
 
+  if (e === DEMO_ADMIN_ACCOUNT.email && inputPass === DEMO_ADMIN_ACCOUNT.password) {
+    const demoSession = createAdminSession_({
+      id: DEMO_ADMIN_ACCOUNT.id,
+      email: DEMO_ADMIN_ACCOUNT.email,
+      name: DEMO_ADMIN_ACCOUNT.name,
+      role: DEMO_ADMIN_ACCOUNT.role,
+      read_only: true,
+      demo_mode: true
+    });
+    return {
+      status: "success",
+      data: {
+        id: DEMO_ADMIN_ACCOUNT.id,
+        nama: DEMO_ADMIN_ACCOUNT.name,
+        email: DEMO_ADMIN_ACCOUNT.email,
+        role: DEMO_ADMIN_ACCOUNT.role,
+        read_only: true,
+        demo_mode: true,
+        session_token: demoSession.token,
+        expires_at: demoSession.expires_at
+      }
+    };
+  }
+
   const u = mustSheet_("Users").getDataRange().getValues();
 
   for (let i = 1; i < u.length; i++) {
@@ -2271,7 +2452,9 @@ function adminLogin(d) {
           id: String(u[i][0] || ""),
           email: e,
           name: String(u[i][3] || "Admin"),
-          role: "admin"
+          role: "admin",
+          read_only: false,
+          demo_mode: false
         });
         return {
           status: "success",
@@ -2280,6 +2463,8 @@ function adminLogin(d) {
             nama: String(u[i][3] || "Admin"),
             email: e,
             role: "admin",
+            read_only: false,
+            demo_mode: false,
             session_token: session.token,
             expires_at: session.expires_at
           }
@@ -2445,6 +2630,11 @@ function runAuthTests() {
   results.push({ test: "adminLogin() rejects empty credentials", pass: emptyResult.status === "error",
     detail: emptyResult.message });
 
+  // Test 12: Demo admin login works
+  const demoLoginResult = adminLogin({ email: DEMO_ADMIN_ACCOUNT.email, password: DEMO_ADMIN_ACCOUNT.password });
+  results.push({ test: "adminLogin() succeeds for demo admin credentials", pass: demoLoginResult.status === "success" && isDemoAdminRole_(demoLoginResult.data && demoLoginResult.data.role),
+    detail: JSON.stringify(demoLoginResult) });
+
   // Test 12: Wrong password rejected
   if (adminRow) {
     const wrongPassResult = adminLogin({ email: adminRow.email, password: "wrongpass123" });
@@ -2516,6 +2706,103 @@ function runMootaValidationTests() {
     status: "success",
     summary: passed + " passed, " + failed + " failed, " + results.length + " total",
     tests: results
+  };
+}
+
+function runDemoAdminSecurityTests() {
+  const demoLogin = adminLogin({ email: DEMO_ADMIN_ACCOUNT.email, password: DEMO_ADMIN_ACCOUNT.password });
+  const demoToken = demoLogin && demoLogin.data ? demoLogin.data.session_token : "";
+  const demoSession = demoToken ? getAdminSession_(demoToken) : null;
+  const sampleData = {
+    status: "success",
+    stats: { users: 10, orders: 15, rev: 2500000 },
+    orders: [["INV-10001", "user@example.com", "Andi", "08123", "PRD-1", "Produk A", 149654, "Pending", "2026-03-19", "-", 0]],
+    products: [["PRD-1", "Produk A", "Deskripsi", "https://example.com", 149654, "Active", "", "https://example.com/img.jpg", "", "", "", 0]],
+    pages: [["PG-1", "landing", "Landing Page", "<h1>Hi</h1>", "Active", "2026-03-19", "ADMIN", "", "", "", "light"]],
+    settings: { site_name: "Kelas Jagoan", contact_email: "admin@example.com", moota_gas_url: "https://example.com/webhook/moota" },
+    users: [["u-001", "member@example.com", "sha256$abc", "Member Satu", "member", "Active", "2026-03-19", "-"]],
+    has_more_orders: false,
+    has_more_users: false
+  };
+  const masked = maskAdminDataForDemo_(sampleData, demoSession || { role: DEMO_ADMIN_ACCOUNT.role, expires_at: 0 });
+
+  const cases = [
+    {
+      test: "Demo admin login berhasil",
+      pass: demoLogin.status === "success" && isDemoAdminRole_(demoLogin.data && demoLogin.data.role),
+      actual: demoLogin
+    },
+    {
+      test: "Demo admin mendapatkan session token",
+      pass: !!demoToken && !!demoSession && Number(demoLogin && demoLogin.data ? demoLogin.data.expires_at : 0) === 0,
+      actual: {
+        token_exists: !!demoToken,
+        session_exists: !!demoSession,
+        expires_at: demoLogin && demoLogin.data ? Number(demoLogin.data.expires_at || 0) : null
+      }
+    },
+    {
+      test: "Middleware mengizinkan demo admin untuk read-only access",
+      pass: (function() {
+        try {
+          return !!validateAdminSessionAccess_({ role: "demo_admin" }, { allowDemo: true, actionName: "get_admin_data" });
+        } catch (e) {
+          return false;
+        }
+      })(),
+      actual: "allowDemo=true"
+    },
+    {
+      test: "Middleware memblokir demo admin untuk aksi mutasi",
+      pass: (function() {
+        try {
+          validateAdminSessionAccess_({ role: "demo_admin" }, { allowDemo: false, actionName: "save_product" });
+          return false;
+        } catch (e) {
+          return String(e).indexOf("Mode demo admin hanya dapat melihat data") !== -1;
+        }
+      })(),
+      actual: "allowDemo=false"
+    },
+    {
+      test: "Masking admin data menyembunyikan nilai order",
+      pass: masked.orders[0][0] !== sampleData.orders[0][0] && masked.orders[0][1] !== sampleData.orders[0][1],
+      actual: masked.orders[0]
+    },
+    {
+      test: "Masking admin data menandai response sebagai demo mode",
+      pass: masked.demo_mode === true && masked.read_only === true,
+      actual: { demo_mode: masked.demo_mode, read_only: masked.read_only }
+    },
+    {
+      test: "Password demo admin yang salah ditolak",
+      pass: adminLogin({ email: DEMO_ADMIN_ACCOUNT.email, password: "salahdemo" }).status === "error",
+      actual: adminLogin({ email: DEMO_ADMIN_ACCOUNT.email, password: "salahdemo" })
+    },
+    {
+      test: "Logout demo admin mencabut session secara manual",
+      pass: (function() {
+        if (!demoToken) return false;
+        adminLogout({ auth_session_token: demoToken });
+        return !getAdminSession_(demoToken);
+      })(),
+      actual: { session_exists_after_logout: !!(demoToken && getAdminSession_(demoToken)) }
+    }
+  ].map(function(item) {
+    return {
+      test: item.test,
+      pass: !!item.pass,
+      actual: item.actual
+    };
+  });
+
+  const passed = cases.filter(function(item) { return item.pass; }).length;
+  const failed = cases.length - passed;
+
+  return {
+    status: "success",
+    summary: passed + " passed, " + failed + " failed, " + cases.length + " total",
+    tests: cases
   };
 }
 
@@ -2636,7 +2923,7 @@ function runMootaSignatureTests() {
 
 function getAdminData(d, cfg) {
   try {
-    const session = requireAdminSession_(d, { actionName: "get_admin_data" });
+    const session = requireAdminSession_(d, { allowDemo: true, actionName: "get_admin_data" });
     cfg = cfg || getSettingsMap_();
     const o = mustSheet_("Orders").getDataRange().getValues();
     const u = mustSheet_("Users").getDataRange().getValues();
@@ -2662,6 +2949,8 @@ function getAdminData(d, cfg) {
 
     const result = {
       status: "success",
+      demo_mode: false,
+      read_only: false,
       role: session.role,
       session_expires_at: session.expires_at,
       stats: { users: u.length - 1, orders: o.length - 1, rev: rev },
@@ -2673,6 +2962,7 @@ function getAdminData(d, cfg) {
       has_more_orders: (o.length - 1) > 20,
       has_more_users: (u.length - 1) > 20
     };
+    if (isDemoAdminRole_(session.role)) return maskAdminDataForDemo_(result, session);
     return result;
   } catch (e) {
     return { status: "error", message: e.toString() };
@@ -2684,7 +2974,7 @@ function getAdminData(d, cfg) {
 ========================= */
 function saveProduct(d) {
   try {
-    requireAdminSession_(d, { actionName: "save_product" });
+    requireAdminSession_(d, { allowDemo: false, actionName: "save_product" });
     const s = mustSheet_("Access_Rules");
     const descValidation = validateProductDescription_(d.desc);
     if (descValidation.errors.length) {
@@ -2737,7 +3027,7 @@ function saveProduct(d) {
 
 function deleteProduct(d) {
   try {
-    requireAdminSession_(d, { actionName: "delete_product" });
+    requireAdminSession_(d, { allowDemo: false, actionName: "delete_product" });
     const s = mustSheet_("Access_Rules");
     const r = s.getDataRange().getValues();
     const id = String(d.id).trim();
@@ -2757,7 +3047,7 @@ function deleteProduct(d) {
 
 function savePage(d) {
   try {
-    requireAdminSession_(d, { actionName: "save_page" });
+    requireAdminSession_(d, { allowDemo: false, actionName: "save_page" });
     const s = mustSheet_("Pages");
     const isEdit = String(d.is_edit) === "true";
     const ownerId = String(d.owner_id || "ADMIN").trim(); // Default ke ADMIN
@@ -2816,7 +3106,7 @@ function savePage(d) {
 
 function deletePage(d) {
   try {
-    requireAdminSession_(d, { actionName: "delete_page" });
+    requireAdminSession_(d, { allowDemo: false, actionName: "delete_page" });
     const s = mustSheet_("Pages");
     const id = String(d.id).trim();
     const ownerId = String(d.owner_id || "ADMIN").trim();
@@ -2866,7 +3156,7 @@ function checkSlug(d) {
 }
 
 function updateSettings(d) {
-  requireAdminSession_(d, { actionName: "update_settings" });
+  requireAdminSession_(d, { allowDemo: false, actionName: "update_settings" });
   const cfg = getSettingsMap_();
   const payload = Object.assign({}, (d && d.payload && typeof d.payload === "object") ? d.payload : {});
   if (Object.prototype.hasOwnProperty.call(payload, "moota_secret") && !Object.prototype.hasOwnProperty.call(payload, "moota_token")) {
@@ -2927,33 +3217,8 @@ function updateSettings(d) {
   return withPublicCacheState_({ status: "success" }, bumpPublicCacheState_(["settings", "dashboard"]));
 }
 
-function updateMootaGatewaySettings(d) {
-  requireAdminSession_(d, { actionName: "update_moota_gateway" });
-  const payload = (d && d.payload && typeof d.payload === "object") ? d.payload : d || {};
-  return updateSettings({
-    auth_session_token: getAdminSessionToken_(d),
-    payload: {
-      moota_gas_url: payload.moota_gas_url,
-      moota_token: payload.moota_token !== undefined ? payload.moota_token : payload.moota_secret
-    }
-  });
-}
-
-function updateImageKitMediaSettings(d) {
-  requireAdminSession_(d, { actionName: "update_imagekit_media" });
-  const payload = (d && d.payload && typeof d.payload === "object") ? d.payload : d || {};
-  return updateSettings({
-    auth_session_token: getAdminSessionToken_(d),
-    payload: {
-      ik_public_key: payload.ik_public_key,
-      ik_endpoint: payload.ik_endpoint,
-      ik_private_key: payload.ik_private_key
-    }
-  });
-}
-
 function importMootaConfig(d) {
-  requireAdminSession_(d, { actionName: "import_moota_config" });
+  requireAdminSession_(d, { allowDemo: false, actionName: "import_moota_config" });
   const payload = (d && d.payload && typeof d.payload === "object") ? d.payload : d || {};
   return updateSettings({
     auth_session_token: getAdminSessionToken_(d),
@@ -2968,7 +3233,7 @@ function importMootaConfig(d) {
    IMAGEKIT AUTH
 ========================= */
 function testImageKitConfig(d, cfg) {
-  requireAdminSession_(d, { actionName: "test_ik_config" });
+  requireAdminSession_(d, { allowDemo: false, actionName: "test_ik_config" });
   cfg = cfg || getSettingsMap_();
   const ikCfg = resolveImageKitConfig_(d, cfg);
   const errors = validateImageKitConfigFormat_(ikCfg, { requireEndpoint: false });
@@ -3001,7 +3266,7 @@ function testImageKitConfig(d, cfg) {
 }
 
 function getImageKitAuth(d, cfg) {
-  requireAdminSession_(d, { actionName: "get_ik_auth" });
+  requireAdminSession_(d, { allowDemo: false, actionName: "get_ik_auth" });
   cfg = cfg || getSettingsMap_();
   const ikCfg = resolveImageKitConfig_(d, cfg);
   const errors = validateImageKitConfigFormat_(ikCfg, { requirePublic: false, requireEndpoint: false, requirePrivate: true });
@@ -3421,7 +3686,7 @@ function forgotPassword(d) {
 ========================= */
 function getAdminOrders(d) {
   try {
-    requireAdminSession_(d, { actionName: "get_admin_orders" });
+    const session = requireAdminSession_(d, { allowDemo: true, actionName: "get_admin_orders" });
     const page = Number(d.page) || 1;
     const limit = Number(d.limit) || 20;
     const o = mustSheet_("Orders").getDataRange().getValues();
@@ -3429,11 +3694,17 @@ function getAdminOrders(d) {
     const start = (page - 1) * limit;
     const end = start + limit;
     
-    return {
+    const response = {
       status: "success",
       data: data.slice(start, end),
       has_more: data.length > end
     };
+    if (isDemoAdminRole_(session.role)) {
+      response.data = response.data.map(maskDemoOrderRow_);
+      response.demo_mode = true;
+      response.read_only = true;
+    }
+    return response;
   } catch(e) {
     return { status: "error", message: e.toString() };
   }
@@ -3441,7 +3712,7 @@ function getAdminOrders(d) {
 
 function getAdminUsers(d) {
   try {
-    requireAdminSession_(d, { actionName: "get_admin_users" });
+    const session = requireAdminSession_(d, { allowDemo: true, actionName: "get_admin_users" });
     const page = Number(d.page) || 1;
     const limit = Number(d.limit) || 20;
     const u = mustSheet_("Users").getDataRange().getValues();
@@ -3449,11 +3720,17 @@ function getAdminUsers(d) {
     const start = (page - 1) * limit;
     const end = start + limit;
     
-    return {
+    const response = {
       status: "success",
       data: data.slice(start, end),
       has_more: data.length > end
     };
+    if (isDemoAdminRole_(session.role)) {
+      response.data = response.data.map(maskDemoUserRow_);
+      response.demo_mode = true;
+      response.read_only = true;
+    }
+    return response;
   } catch(e) {
     return { status: "error", message: e.toString() };
   }

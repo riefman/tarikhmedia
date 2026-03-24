@@ -7,7 +7,7 @@
     "enabled": true
   },
   "assets": {
-    "directory": "public",
+    "directory": ".",
     "binding": "ASSETS",
     "run_worker_first": true
   },
@@ -16,6 +16,8 @@
   ],
   "vars": {
     "ALLOWED_ORIGINS": "https://tarikhmedia.my.id,https://www.tarikhmedia.my.id",
-    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbz27ZBSTNSpO27vR1SceB9m-aA9PPZ4WEm-XAwJ2LSWPY8f5yq1cmUOOVvD_9fUyKG8/exec"
+    "APP_GAS_URL": "https://script.google.com/macros/s/AKfycbwr3oTcf82NfOMrPtjI_OvJ0Tnd_u-D_KVRbvCI34jchMTYczyUsA3-WjgCCoggWrI-rg/exec",
+    "MOOTA_GAS_URL": "https://script.google.com/macros/s/AKfycbwr3oTcf82NfOMrPtjI_OvJ0Tnd_u-D_KVRbvCI34jchMTYczyUsA3-WjgCCoggWrI-rg/exec",
+    "MOOTA_TOKEN": "l1GiARpI"
   }
 }

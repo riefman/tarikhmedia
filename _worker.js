@@ -210,6 +210,34 @@ function parseAllowedOrigins(env) {
   return _parsedOrigins;
 }
 
+const LUCIDE_VENDOR_VERSION = '0.577.0';
+const LUCIDE_VENDOR_URL = `https://unpkg.com/lucide@${LUCIDE_VENDOR_VERSION}/dist/umd/lucide.min.js`;
+
+async function serveLucideVendor(request, ctx) {
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+  const cacheKey = new Request(url.toString(), { method: 'GET' });
+  const cached = await caches.default.match(cacheKey);
+  if (cached) {
+    inc('assets_cache_hit');
+    return maybeCompress(request, withStaticCacheHeaders(withMetricHeaders(cached, { 'x-edge-cache': 'HIT' }), pathname));
+  }
+  inc('assets_cache_miss');
+  const upstream = await fetch(LUCIDE_VENDOR_URL, { method: 'GET' });
+  if (!upstream.ok) {
+    return new Response('Vendor asset unavailable', {
+      status: 502,
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' }
+    });
+  }
+  const headers = new Headers(upstream.headers);
+  headers.set('Content-Type', 'application/javascript; charset=utf-8');
+  headers.set('X-Content-Type-Options', 'nosniff');
+  const out = withStaticCacheHeaders(withMetricHeaders(new Response(upstream.body, { status: 200, headers }), { 'x-edge-cache': 'MISS' }), pathname);
+  if (ctx) ctx.waitUntil(caches.default.put(cacheKey, out.clone()));
+  return maybeCompress(request, out);
+}
+
 export default {
   async fetch(request, env, ctx) {
     const startedAt = Date.now();
@@ -255,6 +283,10 @@ export default {
     const pLower = String(url.pathname || '').toLowerCase();
     if (_blockedPaths.has(url.pathname) || _blockedPaths.has(pLower)) {
       return new Response('Not Found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
+    }
+
+    if (request.method === 'GET' && url.pathname === '/assets/vendor/lucide.min.js') {
+      return serveLucideVendor(request, ctx);
     }
 
     if (url.pathname === '/api') {
@@ -829,11 +861,24 @@ function resolveAssetCacheControl(pathname) {
   return 'public, max-age=300, s-maxage=300';
 }
 
+function ensureAssetContentType(headers, pathname) {
+  try {
+    const existing = headers.get('Content-Type');
+    if (existing && String(existing).trim()) return;
+    const p = String(pathname || '').toLowerCase();
+    if (p.endsWith('.js') || p.endsWith('.mjs')) {
+      headers.set('Content-Type', 'application/javascript; charset=utf-8');
+      return;
+    }
+  } catch (e) { }
+}
+
 function withStaticCacheHeaders(response, pathname) {
   try {
     const headers = new Headers(response.headers);
     const cacheControl = resolveAssetCacheControl(pathname);
     if (cacheControl) headers.set('Cache-Control', cacheControl);
+    ensureAssetContentType(headers, pathname);
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   } catch (e) {
     return response;
@@ -843,11 +888,7 @@ function withStaticCacheHeaders(response, pathname) {
 function withMetricHeaders(response, extra) {
   try {
     const headers = new Headers(response.headers);
-    if (extra) {
-      Object.keys(extra).forEach(k => {
-        headers.set(k, extra[k]);
-      });
-    }
+    if (extra) Object.keys(extra).forEach(k => headers.set(k, extra[k]));
     headers.set('x-worker', 'pages-advanced');
     return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
   } catch (e) {
@@ -986,68 +1027,12 @@ function softRateLimitOk(request, rpm) {
   }
 }
 
-function jsonResponse(payload, status = 200) {
-  return new Response(JSON.stringify(payload), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  });
-}
-
-function createWebhookRequestId(request) {
-  return request.headers.get('CF-Ray')
-    || request.headers.get('X-Request-ID')
-    || request.headers.get('X-Correlation-ID')
-    || crypto.randomUUID();
-}
-
-function pickForwardHeader(request, name, maxLen = 1024) {
-  const value = request.headers.get(name);
-  if (!value) return '';
-  const normalized = String(value).trim();
-  if (!normalized) return '';
-  return normalized.length > maxLen ? normalized.slice(0, maxLen) : normalized;
-}
-
-function buildMootaForwardHeaders(request, requestId) {
-  const headers = new Headers();
-  headers.set('Content-Type', pickForwardHeader(request, 'Content-Type', 128) || 'application/json');
-  headers.set('X-Webhook-Request-ID', requestId);
-  headers.set('X-Webhook-Source', 'moota');
-
-  const passthroughHeaders = [
-    'Signature',
-    'X-Signature',
-    'X-MOOTA-SIGNATURE',
-    'X-MOOTA-USER',
-    'X-MOOTA-WEBHOOK',
-    'User-Agent',
-    'CF-Connecting-IP',
-    'X-Forwarded-For',
-    'X-Forwarded-Proto',
-    'CF-Ray'
-  ];
-
-  for (const name of passthroughHeaders) {
-    const value = pickForwardHeader(request, name);
-    if (value) headers.set(name, value);
-  }
-
-  const cfIp = headers.get('CF-Connecting-IP');
-  if (cfIp && !headers.get('X-Forwarded-For')) {
-    headers.set('X-Forwarded-For', cfIp);
-  }
-
-  return headers;
-}
-
 async function handleWebhook(request, gasUrl, secretToken) {
-  const requestId = createWebhookRequestId(request);
   if (!gasUrl) {
-    return jsonResponse({
-      status: 'error',
-      message: 'Missing environment variable MOOTA_GAS_URL',
-      request_id: requestId
-    }, 500);
+    return new Response(
+      JSON.stringify({ status: 'error', message: 'Missing environment variable MOOTA_GAS_URL' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 
   try {
@@ -1059,33 +1044,27 @@ async function handleWebhook(request, gasUrl, secretToken) {
     const mootaWebhook = request.headers.get('X-MOOTA-WEBHOOK') || '';
     const userAgent = request.headers.get('User-Agent') || '';
     const body = await request.text();
-    console.log('[moota-webhook] Incoming webhook', {
-      request_id: requestId,
-      body_bytes: body.length,
-      has_signature: !!signature,
-      has_x_moota_user: !!mootaUser,
-      has_x_moota_webhook: !!mootaWebhook
-    });
 
     if (!signature) {
       console.warn('[moota-webhook] Missing signature header', {
-        request_id: requestId,
         has_x_moota_user: !!mootaUser,
         has_x_moota_webhook: !!mootaWebhook,
         user_agent: userAgent,
         worker_has_secret_token: !!String(secretToken || '').trim()
       });
-      return jsonResponse({
-        status: 'error',
-        message: 'Missing Signature header from Moota webhook',
-        request_id: requestId,
-        diagnostics: {
-          has_x_moota_user: !!mootaUser,
-          has_x_moota_webhook: !!mootaWebhook,
-          user_agent: userAgent || '',
-          worker_has_secret_token: !!String(secretToken || '').trim()
-        }
-      }, 400);
+      return new Response(
+        JSON.stringify({
+          status: 'error',
+          message: 'Missing Signature header from Moota webhook',
+          diagnostics: {
+            has_x_moota_user: !!mootaUser,
+            has_x_moota_webhook: !!mootaWebhook,
+            user_agent: userAgent || '',
+            worker_has_secret_token: !!String(secretToken || '').trim()
+          }
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
     }
 
     let workerVerification = {
@@ -1099,30 +1078,29 @@ async function handleWebhook(request, gasUrl, secretToken) {
       workerVerification = await verifyMootaSignature(body, secretToken, signature);
       if (!workerVerification.ok) {
         console.warn('[moota-webhook] Invalid signature at worker', {
-          request_id: requestId,
           validation_code: workerVerification.code,
           received_signature: maskMootaSignature(workerVerification.received),
           expected_signature: maskMootaSignature(workerVerification.expected),
           has_x_moota_user: !!mootaUser,
           has_x_moota_webhook: !!mootaWebhook
         });
-        return jsonResponse({
-          status: 'error',
-          message: 'Invalid Signature at Worker. Secret Token di Worker tidak cocok dengan Signature dari Moota.',
-          request_id: requestId,
-          diagnostics: {
-            validation_code: workerVerification.code,
-            received_signature: maskMootaSignature(workerVerification.received),
-            expected_signature: maskMootaSignature(workerVerification.expected),
-            has_x_moota_user: !!mootaUser,
-            has_x_moota_webhook: !!mootaWebhook
-          }
-        }, 401);
+        return new Response(
+          JSON.stringify({
+            status: 'error',
+            message: 'Invalid Signature at Worker. Secret Token di Worker tidak cocok dengan Signature dari Moota.',
+            diagnostics: {
+              validation_code: workerVerification.code,
+              received_signature: maskMootaSignature(workerVerification.received),
+              expected_signature: maskMootaSignature(workerVerification.expected),
+              has_x_moota_user: !!mootaUser,
+              has_x_moota_webhook: !!mootaWebhook
+            }
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json' } }
+        );
       }
     } else {
-      console.warn('[moota-webhook] MOOTA_TOKEN is not configured in Worker; skipping Worker-level signature verification', {
-        request_id: requestId
-      });
+      console.warn('[moota-webhook] MOOTA_TOKEN is not configured in Worker; skipping Worker-level signature verification');
     }
 
     const targetUrl = new URL(gasUrl);
@@ -1131,66 +1109,33 @@ async function handleWebhook(request, gasUrl, secretToken) {
     targetUrl.searchParams.append('moota_signature', signature);
     targetUrl.searchParams.append('moota_sig_verified', workerVerification.ok ? '1' : '0');
     targetUrl.searchParams.append('moota_sig_verified_by', workerVerification.ok ? 'worker' : workerVerification.code);
-    targetUrl.searchParams.append('moota_request_id', requestId);
     if (mootaUser) targetUrl.searchParams.append('moota_user', mootaUser);
     if (mootaWebhook) targetUrl.searchParams.append('moota_webhook', mootaWebhook);
     if (userAgent) targetUrl.searchParams.append('moota_user_agent', userAgent.substring(0, 120));
-
-    const forwardHeaders = buildMootaForwardHeaders(request, requestId);
 
     let response;
     try {
       response = await fetchWithRetry(targetUrl.toString(), {
         method: 'POST',
-        headers: forwardHeaders,
+        headers: { 'Content-Type': 'application/json' },
         body
       }, { maxAttempts: 4, timeoutMs: 25000 });
     } catch (err) {
-      console.error('[moota-webhook] Upstream GAS unreachable', {
-        request_id: requestId,
-        error: String(err)
+      return new Response(JSON.stringify({ status: 'error', message: 'GAS unreachable after retries: ' + String(err) }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' }
       });
-      return jsonResponse({
-        status: 'error',
-        message: 'GAS unreachable after retries: ' + String(err),
-        request_id: requestId
-      }, 502);
     }
 
     const resultText = await response.text();
-    let resultJson = null;
-    try {
-      resultJson = resultText ? JSON.parse(resultText) : null;
-    } catch (parseError) {
-      resultJson = null;
-    }
-
-    if (resultJson && typeof resultJson === 'object') {
-      if (!Object.prototype.hasOwnProperty.call(resultJson, 'request_id')) {
-        resultJson.request_id = requestId;
-      }
-      if (!Object.prototype.hasOwnProperty.call(resultJson, 'worker_forwarded')) {
-        resultJson.worker_forwarded = true;
-      }
-      return jsonResponse(resultJson, response.status);
-    }
-
-    return jsonResponse({
-      status: response.ok ? 'success' : 'error',
-      message: response.ok ? 'Webhook forwarded successfully.' : 'Webhook forwarding failed at upstream.',
-      request_id: requestId,
-      upstream_status: response.status,
-      upstream_body_preview: String(resultText || '').slice(0, 500)
-    }, response.status);
-  } catch (error) {
-    console.error('[moota-webhook] Unhandled worker error', {
-      request_id: requestId,
-      error: String(error)
+    return new Response(resultText, {
+      status: response.status,
+      headers: { 'Content-Type': 'application/json' }
     });
-    return jsonResponse({
-      status: 'error',
-      message: String(error),
-      request_id: requestId
-    }, 500);
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ status: 'error', message: String(error) }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }

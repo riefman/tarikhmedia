@@ -54,7 +54,7 @@
 
             // 1. Cek Login Admin Area (Prioritas)
             const role = String(sessionStorage.getItem('auth_role') || '').toLowerCase();
-            const isUnifiedAdmin = sessionStorage.getItem('auth_v1') === 'true' && role === 'admin' && !!sessionStorage.getItem('auth_session_token');
+            const isUnifiedAdmin = sessionStorage.getItem('auth_v1') === 'true' && (role === 'admin' || role === 'demo_admin') && !!sessionStorage.getItem('auth_session_token');
             if(isUnifiedAdmin) {
                 return; // Akses diterima sebagai Admin Area
             }
@@ -127,6 +127,11 @@
             <button id="btn-add-order" onclick="openModal('create')" class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow transition text-sm flex items-center justify-center gap-2">
                 <i class="fa-solid fa-plus"></i> Tambah Order
             </button>
+        </div>
+
+        <div id="demoBanner" class="hidden mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-800">
+            <p class="font-bold uppercase tracking-wider text-xs">Demo Mode Read Only</p>
+            <p class="mt-1">Data order disamarkan dan seluruh aksi perubahan dinonaktifkan.</p>
         </div>
 
         <!-- Table Container -->
@@ -255,11 +260,16 @@
         let currentPage = 1;
         let currentData = [];
         let isEditing = false;
+        let isDemoAdmin = false;
+
+        function isDemoAdminSession() {
+            return sessionStorage.getItem('auth_demo_mode') === 'true' || String(sessionStorage.getItem('auth_role') || '').toLowerCase() === 'demo_admin';
+        }
 
         function ensureAdminSessionActive() {
             const token = String(sessionStorage.getItem('auth_session_token') || '');
             const role = String(sessionStorage.getItem('auth_role') || '').toLowerCase();
-            const hasUnifiedSession = sessionStorage.getItem('auth_v1') === 'true' && role === 'admin' && !!token;
+            const hasUnifiedSession = sessionStorage.getItem('auth_v1') === 'true' && (role === 'admin' || role === 'demo_admin') && !!token;
             if (!hasUnifiedSession) {
                 Swal.fire('Sesi Tidak Valid', 'Sesi admin tidak valid. Silakan login ulang.', 'warning')
                     .then(() => window.top.location.replace('admin-area.html'));
@@ -276,8 +286,28 @@
             });
         }
 
+        function guardDemoAction(actionLabel) {
+            if (!isDemoAdmin) return false;
+            Swal.fire('Mode Demo', `Mode demo hanya dapat melihat data. Aksi ${actionLabel} dinonaktifkan.`, 'info');
+            return true;
+        }
+
+        function applyDemoState() {
+            isDemoAdmin = isDemoAdminSession();
+            document.getElementById('demoBanner').classList.toggle('hidden', !isDemoAdmin);
+            const addButton = document.getElementById('btn-add-order');
+            const saveButton = document.getElementById('btn-save-order');
+            [addButton, saveButton].forEach(btn => {
+                if (!btn) return;
+                btn.disabled = isDemoAdmin;
+                btn.classList.toggle('opacity-60', isDemoAdmin);
+                btn.classList.toggle('cursor-not-allowed', isDemoAdmin);
+            });
+        }
+
         // ON LOAD
         document.addEventListener('DOMContentLoaded', () => {
+            applyDemoState();
             fetchOrders(1);
             
             // Search debounce
@@ -376,8 +406,10 @@
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="editOrder('${inv}')" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fa-solid fa-edit"></i></button>
-                        <button onclick="deleteOrder('${inv}')" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>
+                        ${isDemoAdmin
+                            ? `<span class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700">Demo Read Only</span>`
+                            : `<button onclick="editOrder('${inv}')" class="text-indigo-600 hover:text-indigo-900 mr-3"><i class="fa-solid fa-edit"></i></button>
+                        <button onclick="deleteOrder('${inv}')" class="text-red-600 hover:text-red-900"><i class="fa-solid fa-trash"></i></button>`}
                     </td>
                 `;
                 tbody.appendChild(tr);
@@ -416,6 +448,7 @@
 
         // MODAL FUNCTIONS
         function openModal(mode, data = null) {
+            if (guardDemoAction('membuka form order')) return;
             const modal = document.getElementById('orderModal');
             const title = document.getElementById('modalTitle');
             
@@ -460,11 +493,13 @@
 
         // CRUD ACTIONS
         function editOrder(inv) {
+            if (guardDemoAction('mengedit order')) return;
             const item = currentData.find(d => d[0] === inv);
             if (item) openModal('edit', item);
         }
 
         async function saveOrder() {
+            if (guardDemoAction('menyimpan order')) return;
             const payload = {
                 action: isEditing ? 'update_order_status' : 'create_order',
                 id: document.getElementById('orderId').value, // Only for update
@@ -506,6 +541,7 @@
         }
 
         function deleteOrder(inv) {
+            if (guardDemoAction('menghapus order')) return;
             Swal.fire({
                 title: 'Hapus Order?',
                 text: `Anda yakin ingin menghapus invoice ${inv}? Tindakan ini tidak bisa dibatalkan.`,

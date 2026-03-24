@@ -23,7 +23,7 @@ Folder ini adalah paket distribusi user yang sudah dipangkas dari file developme
 ## Checklist Setup User Baru
 
 1. Siapkan Google Sheets utama beserta sheet minimal: `Settings`, `Users`, `Orders`, `Access_Rules`, dan `Pages`.
-2. Buka `Extensions` -> `Apps Script`, lalu paste isi [appscript.js](appscript.js) ke project Apps Script online.
+2. Buka `Extensions` -> `Apps Script`, lalu paste isi [appscript.js](/d:/kelasjagoan3/appscript.js) ke project Apps Script online.
 3. Deploy Apps Script sebagai `Web app`, lalu simpan URL `/exec` hasil deploy untuk dipakai di Worker.
 4. Buka `Project Settings` di Apps Script online, lalu isi `Script Properties` minimal berikut:
    - `moota_token`: secret token Moota yang aktif
@@ -51,13 +51,13 @@ Folder ini adalah paket distribusi user yang sudah dipangkas dari file developme
 ## Sinkronisasi Installer
 
 - Folder `installer/` diabaikan Git lewat `.gitignore`, jadi tidak akan ter-track atau ikut ke push.
-- Build installer sekarang **manifest-driven** lewat `manifest.json`, hanya menyalin runtime essentials (HTML runtime, `assets/`, config, docs user) dan otomatis menolak file dev/test/internal docs.
-- Jalankan `npm run build:installer` (alias: `npm run sync:installer` / `npm run prepare:installer`) untuk regenerate output installer sekali jalan.
-- Jalankan `npm run validate:installer` untuk validasi post-build tanpa copy ulang.
-- Jalankan `npm run sync:installer:start` untuk watcher background (auto-update saat source/dependency penting berubah), `npm run sync:installer:status` untuk cek status, dan `npm run sync:installer:stop` untuk menghentikan watcher.
-- Setiap sinkronisasi menjalankan post-build checks: kelengkapan file wajib, deteksi kebocoran file dev, dan smoke check `validate-config.js` dari dalam folder `installer/`.
-- Log detail perubahan ditulis ke `installer/.sync-meta/sync.log` dan output watcher disimpan di `installer/.sync-meta/watcher-output.log` dengan format `timestamp | add/modify/delete | path`.
-- Dokumentasi teknis struktur folder + pipeline build tersedia di `INSTALLER_BUILD.md` untuk referensi tim development.
+- Jalankan `npm run sync:installer:start` untuk menyalakan watcher background yang otomatis menyinkronkan perubahan dari folder utama ke `installer/`.
+- Jalankan `npm run sync:installer:status` untuk mengecek apakah watcher otomatis sedang aktif.
+- Jalankan `npm run sync:installer:stop` untuk mematikan watcher background.
+- Jalankan `npm run sync:installer` atau `npm run prepare:installer` jika ingin memaksa sinkronisasi satu kali.
+- Log detail perubahan ditulis ke `installer/.sync-meta/sync.log` dan output watcher background disimpan di `installer/.sync-meta/watcher-output.log`.
+- Format log sinkronisasi adalah `timestamp | add/modify/delete | path`, contoh: `2026-03-19T18:51:40.730Z | modify | appscript.js`.
+- Jika melakukan sinkronisasi manual, pastikan file runtime yang berubah ikut dicopy ke `installer/`, minimal: `README.md`, `appscript.js`, `_worker.js`, `wrangler.jsonc`, dan file admin/frontend terkait jika ada perubahan UI.
 
 ## Branding Asset Fallback
 
@@ -65,18 +65,10 @@ Folder ini adalah paket distribusi user yang sudah dipangkas dari file developme
 - Jika logo atau favicon eksternal tidak valid atau gagal dimuat, admin area otomatis memakai ikon bawaan sebagai fallback.
 - Saat menyimpan branding, URL `site_logo` dan `site_favicon` yang tidak valid akan dibersihkan sebelum disimpan ke Settings.
 
-## SEO Homepage
-
-- Homepage sekarang memakai fallback meta tag statis + generator SEO dinamis yang membaca hero content, tagline, dan katalog produk.
-- Fallback Open Graph image ada di [assets/seo/og-default.png](assets/seo/og-default.png) dengan target `1200x630` dan ukuran di bawah `1MB`.
-- Jalankan `npm run validate:seo` untuk audit lokal setelah mengubah copy homepage atau struktur katalog.
-- Lihat panduan maintenance lengkap di [SEO_MAINTENANCE.md](SEO_MAINTENANCE.md).
-
 ## ImageKit Configuration
 
 - Pengaturan ImageKit kini bisa diisi langsung dari admin area melalui 3 field terpisah: public key, URL endpoint, dan private key.
 - Tombol "Test Koneksi ImageKit" akan memvalidasi format kredensial dan mencoba koneksi ke ImageKit sebelum konfigurasi disimpan.
-- Klik tombol `Update ImageKit Media Center` untuk menyimpan perubahan ImageKit tanpa mengubah konfigurasi Moota.
 - Private key disimpan di server via Script Properties agar tidak perlu dikelola langsung di Google Sheets.
 
 ## Moota Configuration
@@ -86,9 +78,7 @@ Folder ini adalah paket distribusi user yang sudah dipangkas dari file developme
 - `Secret Token` wajib minimal 8 karakter alphanumeric, dan dipakai untuk verifikasi signature HMAC SHA-256 dari payload webhook Moota.
 - Secret Token disimpan di server via Script Properties agar tidak terekspos sebagai nilai mentah di Google Sheets.
 - Tombol `Test Koneksi Moota` akan mengirim webhook simulasi ke URL yang dikonfigurasi untuk memverifikasi format URL, Secret Token, signature, dan kesiapan endpoint sebelum konfigurasi disimpan.
-- Klik tombol `Update Moota Payment Gateway` untuk menyimpan perubahan Moota tanpa menyentuh konfigurasi ImageKit.
 - Untuk integrasi API, backend menerima payload `action: "import_moota_config"` atau `action: "update_settings"` dengan key `moota_gas_url` dan `moota_token`.
-- Untuk pemisahan update per tombol admin, backend juga menerima action khusus `update_moota_gateway` dan `update_imagekit_media`.
 
 ## Moota User Guide
 
@@ -96,7 +86,7 @@ Folder ini adalah paket distribusi user yang sudah dipangkas dari file developme
 - Jangan arahkan webhook langsung ke URL `script.google.com` atau `script.googleusercontent.com`, karena Google Apps Script tidak menerima custom header `Signature` secara langsung.
 - Isi `Secret Token` dengan secret yang sama persis dengan secret yang dipakai saat menghitung signature webhook di sisi Moota.
 - Secret yang sama wajib ada di 3 tempat: dashboard Moota, `MOOTA_TOKEN` di Worker, dan `moota_token` pada Script Properties Apps Script.
-- Klik `Test Koneksi Moota` sampai status berhasil, lalu simpan pengaturan lewat `Update Moota Payment Gateway`.
+- Klik `Test Koneksi Moota` sampai status berhasil, lalu simpan pengaturan lewat `Update API Sistem`.
 - Jika memakai Google Apps Script di belakang Cloudflare Worker, arahkan webhook Moota ke endpoint Worker agar header `Signature` bisa diteruskan ke Apps Script.
 
 ## Moota Technical Notes
@@ -130,7 +120,16 @@ Folder ini adalah paket distribusi user yang sudah dipangkas dari file developme
 - Jika Worker membalas `Invalid Signature at Worker`, berarti secret di dashboard Moota tidak cocok dengan `MOOTA_TOKEN` pada konfigurasi Worker.
 - Jika Apps Script membalas `Signature sudah lolos verifikasi di Worker...`, berarti secret di Worker cocok dengan Moota, tetapi `moota_token` di Apps Script / Script Properties masih berbeda.
 - Jika webhook tidak memproses order, cek sheet `Moota_Logs` untuk melihat apakah nominal transfer tidak cocok dengan order pending.
-- Lihat panduan arsitektur lengkap di [MOOTA_WEBHOOK_PROXY_ARCHITECTURE.md](MOOTA_WEBHOOK_PROXY_ARCHITECTURE.md).
+
+## Demo Admin Mode
+
+- Sistem menyediakan akun demo admin read-only:
+  - Email: `admin@demo.com`
+  - Password: `admindemo`
+- Demo admin diarahkan ke dashboard admin biasa, tetapi semua data sensitif disamarkan dengan simbol dan seluruh aksi perubahan dinonaktifkan.
+- Session demo admin otomatis berakhir setelah 15 menit.
+- Demo admin tidak dapat memakai endpoint admin yang mengubah data seperti `save_product`, `save_page`, `update_settings`, `update_order_status`, `purge_cf_cache`, dan endpoint admin mutatif lainnya.
+- Jika user demo mencoba melakukan aksi, UI akan menampilkan notifikasi bahwa mode demo hanya untuk melihat data.
 
 ## Worker Request Audit
 
