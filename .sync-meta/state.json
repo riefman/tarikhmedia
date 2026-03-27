@@ -1,20 +1,12 @@
 {
-  "generated_at": "2026-03-18T20:15:38.489Z",
+  "generated_at": "2026-03-24T11:31:43.751Z",
+  "mode": "manifest-driven",
+  "output_dir": "installer",
   "files": {
-    ".assetsignore": {
-      "hash": "9b7e177a58086d888bbc7f84b9454fcc7c0a775e",
-      "size": 144,
-      "mtimeMs": 1773837253793.6323
-    },
     "404.html": {
       "hash": "f243ab6ef56fed928e14e52adcb3ca337b816728",
       "size": 2478,
       "mtimeMs": 1773864547106.8823
-    },
-    "AUDIT_CLOUDFLARE_WORKERS.md": {
-      "hash": "b7b63f939d6dd0ef28066ff46fcf13d6d92204b9",
-      "size": 7402,
-      "mtimeMs": 1773864582952.2468
     },
     "LICENSE.txt": {
       "hash": "0418cc80a769a1536630150ac57eb824284d1268",
@@ -22,9 +14,9 @@
       "mtimeMs": 1773834508000
     },
     "README.md": {
-      "hash": "9eb7f58ee6e17b98a85a04c9edad9d7e27375591",
-      "size": 11144,
-      "mtimeMs": 1773863142954.1472
+      "hash": "7cecfeb42c3499336713bead8c60529e67fa18ec",
+      "size": 11660,
+      "mtimeMs": 1774351771982.0117
     },
     "_headers": {
       "hash": "a5090dd9b3536211792dc0b44ac45174c3b8d46d",
@@ -37,74 +29,84 @@
       "mtimeMs": 1773799128000
     },
     "_worker.js": {
-      "hash": "4734d32a728847ae4e88912c6ae958194114caf4",
-      "size": 39057,
-      "mtimeMs": 1773864500005.5176
+      "hash": "70b5d0f67a033039a58d528df990ca3092ab8815",
+      "size": 41807,
+      "mtimeMs": 1774339352182.729
     },
     "admin-area.html": {
-      "hash": "f26ac4b549f4a019358f600a657513c2c0a95e7d",
-      "size": 170052,
-      "mtimeMs": 1773863142951.0022
+      "hash": "6af2d539cac180ccc732a7509f490e5da4a67443",
+      "size": 178669,
+      "mtimeMs": 1774342478030.9785
     },
     "admin-orders.html": {
-      "hash": "107b4f06848a057375329dbc3e29204608ea8667",
-      "size": 30257,
-      "mtimeMs": 1773862145649.6162
+      "hash": "7a14ad849d326a3224d8228ce0170b4c4d51fd2c",
+      "size": 27755,
+      "mtimeMs": 1774139943179.3816
     },
     "akses.html": {
-      "hash": "b7f409516b803196d7d400fffbdccb0d0b5eb23e",
-      "size": 15183,
-      "mtimeMs": 1773848996036.352
+      "hash": "6faf83be762865b4425ed8154320bf5df8f2869d",
+      "size": 15109,
+      "mtimeMs": 1774083920012.8672
     },
     "appscript.js": {
-      "hash": "160319951d1e120c7d8fbd6bac6647978e3ae8c2",
-      "size": 145424,
-      "mtimeMs": 1773864500004.4766
+      "hash": "c588f5ba370a19e890719bf881c4616087e201cb",
+      "size": 145462,
+      "mtimeMs": 1774339122334.0269
+    },
+    "assets/seo/og-default.png": {
+      "hash": "09a997609f265f2c23b86d8840a4d88086b742db",
+      "size": 133235,
+      "mtimeMs": 1773887565028.4446
+    },
+    "assets/vendor/lucide.min.js": {
+      "hash": "75d385d63c54b2ad7d9ba1d132d65ead02b59b5b",
+      "size": 398037,
+      "mtimeMs": 1774083780681.7651
     },
     "checkout.html": {
-      "hash": "0eba2216895eca9448ee376483394f3276b1e529",
-      "size": 54638,
-      "mtimeMs": 1773848675613.9937
+      "hash": "843ae7a8c27668849cee4c77a8a7fec656b1f107",
+      "size": 56388,
+      "mtimeMs": 1774086704675.2705
     },
     "config.js": {
-      "hash": "9235c1650f4c1e8b1ee6090dc93559a97208aab6",
-      "size": 24833,
-      "mtimeMs": 1773864500005.5176
+      "hash": "1a32fc5866197df86bf302d5f690751951a8054f",
+      "size": 29996,
+      "mtimeMs": 1774086642616.5747
     },
     "dashboard.html": {
-      "hash": "a59358a4fa7f0c8d9385afaae0873d289e6601f5",
-      "size": 111886,
-      "mtimeMs": 1773864500002.2007
+      "hash": "7e983fbd235e9a5bf86bfe445361ab91c325b9ee",
+      "size": 114747,
+      "mtimeMs": 1774087079337.0332
     },
     "index.html": {
-      "hash": "89d6cdbdca58626c790c00f3e4fc6c82b18038ee",
-      "size": 23478,
-      "mtimeMs": 1773864910015.9202
+      "hash": "54bc0b0afea51557ec418a660431235ec0bfead8",
+      "size": 53262,
+      "mtimeMs": 1774087675726.2947
     },
     "login.html": {
-      "hash": "e682f928890692c8255e19fcd077a3c05c66c6dd",
-      "size": 17607,
-      "mtimeMs": 1773848968945.7737
+      "hash": "2d120f06323a708e84698264a68e33d681e707e0",
+      "size": 19285,
+      "mtimeMs": 1774086808006.3728
     },
     "manifest.json": {
-      "hash": "3799e265265d8c89ea0f732f7a6f02f3fa6b38db",
-      "size": 1023,
-      "mtimeMs": 1773864500007.1284
+      "hash": "e6e45f55b45517f3b85860fb9dbc019c0c2b408a",
+      "size": 1404,
+      "mtimeMs": 1774351680633.2517
     },
     "p.html": {
-      "hash": "61ca869d95f527cef21d1cac7fd37dae2b987590",
-      "size": 12055,
-      "mtimeMs": 1773848652680.0234
+      "hash": "4a5131414f6862c0b0b4fbbbf0e096c0411c9f9e",
+      "size": 21375,
+      "mtimeMs": 1774086737253.193
+    },
+    "package-lock.json": {
+      "hash": "a40cfe3ac22bd2f7d7951311a1e043a13ee28d92",
+      "size": 161741,
+      "mtimeMs": 1774341865244.3328
     },
     "package.json": {
-      "hash": "ae9aa61696726f024ba41321e220fda1fa99fc0f",
-      "size": 687,
-      "mtimeMs": 1773849180498.4158
-    },
-    "scripts/sync-installer.js": {
-      "hash": "5c017b236ead2b4001e6fa653129e00a609a666f",
-      "size": 10204,
-      "mtimeMs": 1773844769363.2805
+      "hash": "713ae4432e796c0cdcec6895048cb40bff7d6f24",
+      "size": 1310,
+      "mtimeMs": 1774351874741.7942
     },
     "setup.js": {
       "hash": "f4ad866529f2a3a1d5e0cabdbd586a99fd5b2ba7",
@@ -112,9 +114,9 @@
       "mtimeMs": 1773745014000
     },
     "site.config.js": {
-      "hash": "f2236e63fe85047d87e7578739eb94e09786a726",
-      "size": 1366,
-      "mtimeMs": 1773836107171.3599
+      "hash": "240b8e678a7dc3262d24164ab3ca3b6804cc1991",
+      "size": 1378,
+      "mtimeMs": 1774103157744.1887
     },
     "tailwind.css": {
       "hash": "a061e6137cc26fb4ed458c61deb244a7423da610",
@@ -126,15 +128,10 @@
       "size": 6829,
       "mtimeMs": 1773745232000
     },
-    "worker-budget-audit.js": {
-      "hash": "dffba76d5ff5886bcf888467f0b1046ca4f7f52f",
-      "size": 5574,
-      "mtimeMs": 1773864500007.1284
-    },
     "wrangler.jsonc": {
-      "hash": "2000604da7b0aaf0d2529d364966afa5c4c4ee21",
-      "size": 742,
-      "mtimeMs": 1773860178952.9348
+      "hash": "a0ef7dba7837371714d5da3f01f060171ca205b3",
+      "size": 1228,
+      "mtimeMs": 1774344463386.7793
     }
   }
 }
